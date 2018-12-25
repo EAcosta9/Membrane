@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  9 09:54:54 2018
-
 @author: Emanuel
 """
 
@@ -105,14 +104,26 @@ def Maxwell(e,ks,T):
     km = ( kg*(1 +2*B(1-e)) )/(1-B(1-e));
     return km; 
 
-H_v = 43172 # j/mol of water at 44 celsius
-P = 10**5;
-Kb = 1.38064852e-23;
-Mwater = 18.01528e-3; #kg/mol
-R = 8.31 ;
-l = 0;
+def get_Re(Dh,v,Sp,T):
+    mu = get_mu(Sp,T);
+    rho = get_rho(Sp,T);
+    Re = vf*Dh*rho/mu; 
+    return Re;
 
-def Membrane(Tbf,Tbp,e,r,t,delta,Sp,ks) :
+def get_Pr(Sp,T):
+    cp = get_cp(Sp,T);
+    mu = get_mu(Sp,T);
+    k = get_k(Sp,T);
+    Pr = mu*cp/k;
+    return Pr;
+
+def get_Nu(Re_f,Pr_bf,Pr_mf):
+    Nu = .097*(Re_f**.73)*(Pr_bf**.13)*(Pr_bf/Pr_mf)**.25
+    #Nu_f  = 4.36 + (.036)*Re_bf*Pr_bf*(df/L)/(1 +( .0011*Re_bf*Pr_bf*(df/L))**.8)
+    #Nu_f = .023*(1+ (6*D/L))*(Re_bf**.8)*(Pr_bf**.33333) 
+    return Nu;
+    
+def Membrane(Tbf,Tbp,e,r,t,delta,Sp,ks,Dh,vf,vp) :
     Tmf = Tbf ;
     Tmp = Tbp ;
     N = 0 ;
@@ -120,58 +131,28 @@ def Membrane(Tbf,Tbp,e,r,t,delta,Sp,ks) :
     while error > 1e-5:
         tempf = Tmf;
         tempp = Tmp;
-        
         Tmean_feed = (Tbf + Tmf)/2;
         Tmean_perm =(Tbp + Tmp)/2;
+#Obtain heat transfer coeffecient for feed side    
+        Re_f = get_Re(Dh,vf,Sp,Tmean_feed); 
+        Pr_bf  = get_Pr(Sp,Tbf);
+        Pr_mf  = get_Pr(Sp,Tmf);
         
-        cp_bf = get_cp(Sp,Tbf);
-        cp_mf = get_cp(Sp,Tmf);
-        
-        k_bf = get_k(Sp,Tbf);
-        k_mf = get_k(Sp,Tmf);
-        k_f = get_k(Sp,Tmf);
-        
-        mu_bf = get_mu(Sp,Tbf);
-        mu_mf = get_mu(Sp,Tmf);
-        mu_f = get_mu(Sp,Tmean_feed);
-        
-        rho_f = get_rho(Sp,Tmean_feed);
-        
-        Dh = 9.09e-3  
-        vf = 2.87;
-        Re_f = vf*Dh*rho_f/mu_f; 
-        
-        Pr_bf  = mu_bf*cp_bf/k_bf
-        Pr_mf = mu_mf*cp_mf/k_mf
-        
-        Nu_f = .097*(Re_f**.73)*(Pr_bf**.13)*(Pr_bf/Pr_mf)**.25
-        #Nu_f  = 4.36 + (.036)*Re_bf*Pr_bf*(df/L)/(1 +( .0011*Re_bf*Pr_bf*(df/L))**.8)
-        #Nu_f = .023*(1+ (6*D/L))*(Re_bf**.8)*(Pr_bf**.33333) 
+        Nu_f = get_Nu(Re_f,Pr_bf,Pr_mf)
+        k_f = get_k(Sp,Tmean_feed);
         hf = Nu_f*k_f/Dh;
-##For the permeate assume pure water
-        cp_bp = get_cp(Sp,Tbp);
-        cp_mp = get_cp(Sp,Tmp);
+#Obtain heat transfer coeffecient for permeate side           
+#For the permeate assume pure water
+        Re_p = get_Re(Dh,vf,0,Tmean_perm); 
+        Pr_bp  = get_Pr(0,Tbp);
+        Pr_mp  = get_Pr(0,Tmp);
         
-        k_bp = get_k(Sp,Tbp);
-        k_mp = get_k(Sp,Tmp);
-        k_p = get_k(Sp,Tmp);
-        
-        mu_bp = get_mu(Sp,Tbp);
-        mu_mp = get_mu(Sp,Tmp);
-        mu_p = get_mu(Sp,Tmean_perm);
-        
-        rho_p = get_rho(Sp,Tmean_perm);
-        
-        vp = 4.67
-        Re_p = vp*Dh*rho_p/mu_p 
-        Pr_bp  = mu_bp*cp_bp/k_bp
-        Pr_mp  = mu_mp*cp_mp/k_mp
-        
-        Nu_p = .097*(Re_p**.73)*(Pr_bp**.13)*(Pr_bp/Pr_mp)**.25
-        #Nu_p  = 4.36 + (.036*Re_bp*Pr_bp*(dp/L))/(1 +( .0011*Re_bp*Pr_bp*(dp/L))**.8)
-        #Nu_p = .023*(1+ (6*D/L))*(Re_bp**.8)*(Pr_bp**.33333)
+        Nu_p = get_Nu(Re_p,Pr_bp,Pr_mp)
+        k_p = get_k(0,Tmp);
         hp = Nu_p*k_p/Dh;
 #Determination of the membrane heat transfer coeffecient.
+#Isostress,Isotrain, or Maxwell corellations can be used.
+#Isostress used as default
         T_m = (Tmf+Tmp)/2; 
         km = Isostress(e,ks,T_m);
         hm = km/delta # W/m2k 
@@ -179,56 +160,53 @@ def Membrane(Tbf,Tbp,e,r,t,delta,Sp,ks) :
         Tmf = (Tbf*hf +hm*(Tbp + Tbf*(hf/hp)) - N*H_v)/(hf*(1+hm/hp) +hm)
         Tmp = (Tbp*hp +hm*(Tbf + Tbp*(hp/hf)) + N*H_v)/(hp*(1+hm/hf) +hm)
 
-#########################################################################
-#Now we need to calculate the flux N
-
-#Assume pure water and use the antoinne equation.
+#Calculation of flux N
+#Antoinne equation to calculate interfacial membrane temperatures.
         pmf = get_pressure(Sp,Tmf);
         pmp = get_pressure(0,Tmp);
         pavg = (pmf+pmp)/2;
+        dP = pmf-pmp;
+        
         paf = P+pmf;
         pap = P+pmp;
         pa_avg =(pap+pap)/2;
 #Dusty Gas model
 #Constants we need. depend on the membrane structure but this is a good guess
         B0,K0,K1 = get_memconstants(e,r,t);
-        Kn = get_knudsen(T_m,pavg,r);
-        
+        Kn = get_knudsen(T_m,pavg,r);  
         vmean = numpy.sqrt(8*T_m*R/(3.141592*Mwater)) #m/s
-        Dij = 27.425e-6#m/s
-        Dijm = K1*pa_avg*Dij
-        Dijk = K0*vmean
-        paln = (paf-pap)/numpy.log(paf/pap)
-        
+#Determination of the membrane mass trasnfer coefficient
+        if (Kn >1):        
+            Bm = (2*e*r/R*T_m*3*t*delta) *vmean; 
+        else if (Kn >)
+        N = Bm*(pmf-pmp)
         N_temp = N
-        if Kn > 1:
-            N =  K0*vmean/(R*T_m) *  (pmf-pmp)/(delta);
-            mu_mem = get_mu(0,T_m);
-            N = N + (1/(R*T_m*delta))*(Dijk + (pavg*B0/mu_mem)*(pmp-pmf))
 
-        if Kn <.01:
-            N =  Dijm/(R*T_m*delta) * (pmf-pmp)/(paln)
-            mu_mem = get_mu(0,T_m);
-            N = N + (1/(R*T_m*delta))*(Dijk + (pavg*B0/mu_mem)*(pmp-pmf))
-        if Kn <1.0 and Kn>.01:
-            N = Dijm/(R*T_m*delta) * numpy.log((Dijk*pap +Dijm)/(Dijk*pap +Dijm))
-            mu_mem = get_mu(0,T_m);
-            N = N + (1/(R*T_m*delta))*(Dijk + (pavg*B0/mu_mem)*(pmp-pmf))
-      
         errorTmf = numpy.abs(tempf - Tmf)
         errorTmp = numpy.abs(tempp - Tmp)
         errorN = numpy.abs(N_temp - N)
         error = numpy.amax([errorTmf,errorTmp,errorN])
-        print(errorTmf , errorTmf ,errorN );
-        return N
+        print(Kn);
+    return N,Tmf,Tmp
+
+H_v = 43172 # j/mol of water at 44 celsius
+P = 10**5;
+Kb = 1.38064852e-23;
+Mwater = 18.01528e-3; #kg/mol
+R = 8.31 ;
+l = 0;
 
 e = .62; #porosity unitless
 r = .22e-6/2; #mean pore radius meters.
 t  = ((2-e)**2)/e; # unitless 
 delta = 126e-6 ;#Using PTFE - 1. Thickness in meters.
 #Initial bulk fluid conditions
-Tbf = 60+273.15;
+Tbf = 70+273.15;
 Tbp = 20+273.15;
 Sp = 0;
-k_ptfe = .25
-n = Membrane(Tbf,Tbp,e,r,t,delta,Sp,k_ptfe )
+k_ptfe = .041
+Dh = 3e-3
+vf = 2.59
+vp = 4.67
+n,tmf,tmp = Membrane(Tbf,Tbp,e,r,t,delta,Sp,k_ptfe,Dh,vf,vp)
+print(n,tmf,tmp)
