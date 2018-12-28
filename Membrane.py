@@ -108,7 +108,7 @@ def Maxwell(e,ks,T):
 def get_Re(Dh,v,Sp,T):
     mu = get_mu(Sp,T);
     rho = get_rho(Sp,T);
-    Re = vf*Dh*rho/mu; 
+    Re = v*Dh*rho/mu; 
     return Re;
 
 def get_Pr(Sp,T):
@@ -118,10 +118,11 @@ def get_Pr(Sp,T):
     Pr = mu*cp/k;
     return Pr;
 
-def get_Nu(Re_f,Pr_bf,Pr_mf):
-    Nu = .097*(Re_f**.73)*(Pr_bf**.13)*(Pr_bf/Pr_mf)**.25
-    #Nu_f  = 4.36 + (.036)*Re_bf*Pr_bf*(df/L)/(1 +( .0011*Re_bf*Pr_bf*(df/L))**.8)
-    #Nu_f = .023*(1+ (6*D/L))*(Re_bf**.8)*(Pr_bf**.33333) 
+def get_Nu(Re,Pr_b,Pr_m,D,L):
+    if (Re > 10000):
+        Nu = .023*(1+ (6*D/L))*(Re**.8)*(Pr_b**.33333) 
+    else:
+        Nu  = 4.36 + ( (.036)*Re*Pr_b*(D/L) ) / (1 +( .0011* (Re*Pr_b*(D/L))**.8) )
     return Nu;
 
 def get_Bm(e,r,t,Kn,T_m,vmean):
@@ -136,7 +137,7 @@ def get_Bm(e,r,t,Kn,T_m,vmean):
     return Bm;
 
 
-def Membrane(Tbf,Tbp,e,r,t,delta,Sp,ks,Dh,vf,vp) :
+def Membrane(Tbf,Tbp,e,r,t,delta,Sp,ks,Dh,L,vf,vp) :
     Tmf = Tbf ;
     Tmp = Tbp ;
     N = 0 ;
@@ -151,16 +152,16 @@ def Membrane(Tbf,Tbp,e,r,t,delta,Sp,ks,Dh,vf,vp) :
         Pr_bf  = get_Pr(Sp,Tbf);
         Pr_mf  = get_Pr(Sp,Tmf);
         
-        Nu_f = get_Nu(Re_f,Pr_bf,Pr_mf)
+        Nu_f = get_Nu(Re_f,Pr_bf,Pr_mf,Dh,L)
         k_f = get_k(Sp,Tmean_feed);
         hf = Nu_f*k_f/Dh;
 #Obtain heat transfer coeffecient for permeate side           
 #For the permeate assume pure water
-        Re_p = get_Re(Dh,vf,0,Tmean_perm); 
+        Re_p = get_Re(Dh,vp,0,Tmean_perm); 
         Pr_bp  = get_Pr(0,Tbp);
         Pr_mp  = get_Pr(0,Tmp);
         
-        Nu_p = get_Nu(Re_p,Pr_bp,Pr_mp)
+        Nu_p = get_Nu(Re_p,Pr_bp,Pr_mp,Dh,L)
         k_p = get_k(0,Tmp);
         hp = Nu_p*k_p/Dh;
 #Determination of the membrane heat transfer coeffecient.
@@ -189,32 +190,37 @@ def Membrane(Tbf,Tbp,e,r,t,delta,Sp,ks,Dh,vf,vp) :
         Bm = get_Bm(e,r,t,Kn,T_m,vmean);
 #Determination of the mass flux
         N_temp = N
-        N = Bm*(dP)
+        N_molar = Bm*(dP)
+        N = N_molar*Mwater;
 
         errorTmf = numpy.abs(tempf - Tmf)
         errorTmp = numpy.abs(tempp - Tmp)
         errorN = numpy.abs(N_temp - N)
         error = numpy.amax([errorTmf,errorTmp,errorN])
+        print(Kn,T_m,vmean)
     return N,Tmf,Tmp
 
-H_v = 43172 # j/mol of water at 44 celsius
+H_v = 2.257 # j/kg of water at 44 celsius
 P = 10**5;
 Kb = 1.38064852e-23;
 Mwater = 18.01528e-3; #kg/mol
 R = 8.31 ;
 l = 0;
+Sp = 0;
 
 e = .62; #porosity unitless
-r = .22e-6/2; #mean pore radius meters.
+r = .22e-6; #mean pore radius meters.
 t  = ((2-e)**2)/e; # unitless 
 delta = 126e-6 ;#Using PTFE - 1. Thickness in meters.
+
 #Initial bulk fluid conditions
-Tbf = 70+273.15;
+Tbf = 60+273.15;
 Tbp = 20+273.15;
-Sp = 0;
-k_ptfe = .041
+k_ptfe = .19
+
 Dh = 3e-3
-vf = 2.59
-vp = 4.67
-n,tmf,tmp = Membrane(Tbf,Tbp,e,r,t,delta,Sp,k_ptfe,Dh,vf,vp)
+vf = 2.13
+vp = 3.5
+L_both = 1e-1
+n,tmf,tmp = Membrane(Tbf,Tbp,e,r,t,delta,Sp,k_ptfe,Dh,L_both,vf,vp)
 print(n,tmf,tmp)
