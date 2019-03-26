@@ -2,6 +2,9 @@
 """
 Created on Sat Jan  5 22:44:07 2019
 
+MEMBRANE FUNCTIONS
+
+
 @author: Emanuel
 """
 
