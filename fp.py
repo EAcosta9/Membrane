@@ -2,6 +2,9 @@
 """
 Created on Thu Jan  3 23:33:18 2019
 
+FLUID PROPERTIES functions
+
+
 @author: Emanuel
 
 Correlations for thermophysical properties of seawater. 
