@@ -1,6 +1,6 @@
 
 import numpy
-import fp
+import correlations
 import functions
 
 l = 0;
