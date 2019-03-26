@@ -1,0 +1,8 @@
+density of water increases with increasing salinity
+Specific heat decreases with increasing salinity
+The thermal conductivity decreases with increasing salinity and increases with increasing temperature.
+kinematic viscosity increases with increasing salinity
+dyanamic viscosity increases with increasing salinity
+vapor pressure decreases with increasing salinity
+enthalpy decreases with increasing salinity
+
