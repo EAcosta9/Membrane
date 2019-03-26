@@ -1,7 +1,7 @@
 
 import numpy
 import fp
-import MF
+import functions
 
 l = 0;
 Sp = 0;
