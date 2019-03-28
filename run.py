@@ -4,11 +4,6 @@ Created on Sat Jan  5 21:51:59 2019
 
 @author: Emanuel
 """
-# -*- coding: utf-8 -*-
-"""
-Created on Sun Dec  9 09:54:54 2018
-@author: Emanuel
-"""
 
 import numpy
 import fp
